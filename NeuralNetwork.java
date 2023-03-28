@@ -1,5 +1,4 @@
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -130,6 +129,7 @@ public class NeuralNetwork {
             expected.add(tempExpected);
             line = bf.readLine();
         }
+        bf.close();
         // return mix of the input and expected
         return new int[][][]{inputs.toArray(new int[inputs.size()][]), expected.toArray(new int[expected.size()][])};
     }
