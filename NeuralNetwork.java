@@ -1,4 +1,9 @@
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.*;
 import java.util.Random;
 
@@ -55,6 +60,10 @@ public class NeuralNetwork {
         }
     }
 
+    public void trainData(int[][] inputs, int[][] expecteds) {
+
+    }
+
     // add one layer
     public void addLayer(int numNodes, Function<Double, Double> activationFunction) {
         layers.add(new double[numNodes]);
@@ -62,7 +71,7 @@ public class NeuralNetwork {
     }
 
     // add multiple layers
-    //! FIX
+    //! WIP, make nicer
     public void addLayers(int numNodes, Function<Double, Double> activationFunction, int numLayers) {
         for(int i = 0 ; i < numLayers; i++) {
             addLayer(numNodes, activationFunction);
@@ -79,7 +88,51 @@ public class NeuralNetwork {
     }
 
     // utility functions
+    // get the data in the form of [input=0, output=1][input/output round][nodes]
+    public static int[][][] getInputData(String path, String split) throws IOException, Exception {
+        BufferedReader bf = new BufferedReader(new FileReader(path));
+        ArrayList<int[]> inputs = new ArrayList<>();
+        ArrayList<int[]> expected = new ArrayList<>();
+        
+        // skip initial comments
+        String line = bf.readLine();
+        while(line.charAt(0) == '/') {
+            line = bf.readLine();
+        }
+        // set length
+        int lenIn = line.split(split)[0].length();
+        int lenExp = line.split(split)[1].length();
 
+        // get each line
+        while(line != null) {
+            // skip comments
+            if(line.charAt(0) == '/') {
+                line = bf.readLine();
+                continue;
+            }
+            // split input
+            String[] splitInput = line.split(split);
+            int[] tempInput = splitInput[0].chars().toArray();
+            int[] tempExpected = splitInput[1].chars().toArray();
+            if(tempInput.length != lenIn) {
+                throw new Exception("Length of input not consistent.");
+            } else if(tempExpected.length != lenExp) {
+                throw new Exception("Length of output not consistent.");
+            }
+            // make input an int
+            for(int i = 0; i < tempInput.length; i++) {
+                tempInput[i] -= '0';
+            }
+            for(int i = 0; i < tempExpected.length; i++) {
+                tempExpected[i] -= '0';
+            }
+            inputs.add(tempInput);
+            expected.add(tempExpected);
+            line = bf.readLine();
+        }
+        // return mix of the input and expected
+        return new int[][][]{inputs.toArray(new int[inputs.size()][]), expected.toArray(new int[expected.size()][])};
+    }
 
     // Default Activation Functions
     static public double sigmoid(double num) {
@@ -91,6 +144,15 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) {
-
+        int[][][] inputs = null;
+        try {
+            inputs = getInputData("training.data", ",");
+        } catch(IOException ioe) {
+            System.out.println("Couldn't find file.");
+        } catch(Exception ex) {
+            System.out.println(ex.getMessage());
+            ex.printStackTrace();
+        }
+        System.out.println(Arrays.deepToString(inputs));
     }
 }
