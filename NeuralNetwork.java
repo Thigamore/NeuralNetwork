@@ -10,7 +10,7 @@ public class NeuralNetwork {
 
     // neural network variables
     private double learningRate;
-    private BiFunction<Double, Double, Double> cost;
+    private BiFunction<double[], double[], Double> cost;
 
     // layer variables
     private ArrayList<double[]> layers;
@@ -18,12 +18,12 @@ public class NeuralNetwork {
     private ArrayList<double[][]> weights;
     private ArrayList<double[][]> biases;
 
-    // Constructors
+    //* ----------------- Constructors
     public NeuralNetwork() {
         this(0, null);
     }
 
-    public NeuralNetwork(double learningRate, BiFunction<Double, Double, Double> costFunction) {
+    public NeuralNetwork(double learningRate, BiFunction<double[], double[], Double> costFunction) {
         // neural net vars
         this.learningRate = learningRate;
         this.cost = costFunction;
@@ -63,13 +63,28 @@ public class NeuralNetwork {
 
     }
 
-    // add one layer
+    // add one layer using created activation fn
     public void addLayer(int numNodes, Function<Double, Double> activationFunction) {
         layers.add(new double[numNodes]);
         activationFns.add(activationFunction);
     }
 
-    // add multiple layers
+    // add one layer using precreating activation fns
+    public void addLayerStr(int numNodes, String activationFn) {
+        switch (activationFn.toLowerCase().trim()) {
+            case "sigmoid":
+                addLayer(numNodes, NeuralNetwork::sigmoid);
+                break;
+            case "relu":
+                addLayer(numNodes, NeuralNetwork::relu);
+                break;
+            default:
+                System.out.println("Couldn't find function");
+                break;
+        }
+    }
+
+    // add multiple layers 
     //! WIP, make nicer
     public void addLayers(int numNodes, Function<Double, Double> activationFunction, int numLayers) {
         for(int i = 0 ; i < numLayers; i++) {
@@ -82,11 +97,11 @@ public class NeuralNetwork {
         this.learningRate = learningRate;
     }
 
-    public void setCost(BiFunction<Double, Double, Double> costFunction) {
+    public void setCost(BiFunction<double[], double[], Double> costFunction) {
         this.cost = costFunction;
     }
 
-    // utility functions
+    //* ------------------ utility functions
     // get the data in the form of [input=0, output=1][input/output round][nodes]
     public static int[][][] getInputData(String path, String split) throws IOException, Exception {
         BufferedReader bf = new BufferedReader(new FileReader(path));
@@ -134,7 +149,21 @@ public class NeuralNetwork {
         return new int[][][]{inputs.toArray(new int[inputs.size()][]), expected.toArray(new int[expected.size()][])};
     }
 
-    // Default Activation Functions
+    private void printWeights() {
+        for(int i = 0; i < weights.size(); i++) {
+            System.out.println("\nFrom layer " + i + " to layer " + (i+1));
+            for(int j = 0; j < weights.get(i).length; j++) {
+                System.out.println("\tNode " + j);
+                System.out.print("\t\t");
+                for(int k = 0; k< weights.get(i)[j].length; k++) {
+                    System.out.print(String.format("%.3f, ", weights.get(i)[j][k]));
+                }
+                System.out.println();
+            }
+        }
+    }
+
+    //* ------------------  Default Activation Functions
     static public double sigmoid(double num) {
         return 1/(1+Math.exp(-1 * num));
     }
@@ -143,7 +172,18 @@ public class NeuralNetwork {
         return Math.max(0f, num);
     }
 
+    //* ------------------- Default cost functions
+    static public double meanSquaredError(double[] actual, double[] expected) {
+        double mse = 0;
+        for(int i = 0; i < actual.length; i++) {
+            mse += (actual[i] - expected[i]) * (actual[i] - expected[i]);
+        }
+        mse /= actual.length;
+        return mse;
+    }
+
     public static void main(String[] args) {
+        // getting input
         int[][][] inputs = null;
         try {
             inputs = getInputData("training.data", ",");
@@ -152,7 +192,27 @@ public class NeuralNetwork {
         } catch(Exception ex) {
             System.out.println(ex.getMessage());
             ex.printStackTrace();
+            System.exit(1);
         }
-        System.out.println(Arrays.deepToString(inputs));
+
+        // setting up network
+        double learningRate = 0.1;
+        BiFunction<double[], double[], Double> costFn = NeuralNetwork::meanSquaredError;
+        NeuralNetwork net = new NeuralNetwork(learningRate, costFn);
+
+        // adding layers
+        net.addLayer(15, null);
+        net.addLayerStr(6, "sigmoid");
+        net.addLayerStr(10, "sigmoid");
+        
+        // initialize network (weights and biases)
+        try {
+            net.init();
+        } catch(Exception ex) {
+            System.out.println(ex.getMessage());
+            System.exit(1);
+        }
+        System.out.println("Successfully initialized network");
+        net.printWeights();
     }
 }
