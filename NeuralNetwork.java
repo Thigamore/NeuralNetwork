@@ -16,7 +16,7 @@ public class NeuralNetwork {
     private ArrayList<double[]> layers;
     private ArrayList<Function<Double, Double>> activationFns;
     private ArrayList<double[][]> weights;
-    private ArrayList<double[][]> biases;
+    private ArrayList<double[]> biases;
 
     //* ----------------- Constructors
     public NeuralNetwork() {
@@ -46,13 +46,15 @@ public class NeuralNetwork {
 
         for (int i = 0; i < layers.size() - 1; i++) {
             double[][] tempWeights = new double[layers.get(i).length][layers.get(i + 1).length];
-            double[][] tempBiases = new double[layers.get(i).length][layers.get(i + 1).length];
+            double[] tempBiases = new double[layers.get(i).length];
             for (int j = 0; j < tempWeights.length; j++) {
                 for (int k = 0; k < tempWeights[j].length; k++) {
                     // randomize biases and weights between -5 and 5
                     tempWeights[j][k] = (rand.nextDouble() * 10) - 5;
-                    tempBiases[j][k] = (rand.nextDouble() * 10) - 5;
                 }
+            }
+            for(int j = 0; j < tempBiases.length; j++) {
+                tempBiases[j] = (rand.nextDouble() * 10 ) -5;
             }
             weights.add(tempWeights);
             biases.add(tempBiases);
@@ -60,7 +62,7 @@ public class NeuralNetwork {
     }
 
     // trains the data using forward/backward propogation
-    public void trainData(int[][] inputs, int[][] expecteds) {
+    public void trainData(double[][] inputs, double[][] expecteds) {
         // go through every input
         for(int i = 0; i < inputs.length; i++) {
             // set input layer to input
@@ -73,6 +75,13 @@ public class NeuralNetwork {
             // forward Propogate
             forwardPropagate();
             printLayers();
+
+            // calculate error or forward propogation
+            double error = cost.apply(layers.get(layers.size() - 1), expecteds[i]);
+            System.out.println(String.format("Error: %.3f", error));
+
+            // backward propogation
+            backPropogate(error);
         }
     }
 
@@ -89,9 +98,13 @@ public class NeuralNetwork {
                     sum += weights.get(i)[send][rec] * layerSending[send];
                 }
                 // set sum of corresponding layer using activation fn
-                layers.get(i+1)[rec] = activationFns.get(i+1).apply(sum);
+                layers.get(i+1)[rec] = activationFns.get(i+1).apply(sum + biases.get(i)[rec]);
             }
         }
+    }
+
+    public void backPropogate(double error) {
+
     }
 
     // add one layer using created activation fn
@@ -205,6 +218,11 @@ public class NeuralNetwork {
         System.out.println();
     }
 
+    public static double[] intArrToDouble(int[] arr) {
+        return Arrays.stream(arr).asDoubleStream().toArray();
+    }
+
+
     //* ------------------  Default Activation Functions
     static public double sigmoid(double num) {
         return 1/(1+Math.exp(-1 * num));
@@ -238,6 +256,15 @@ public class NeuralNetwork {
             ex.printStackTrace();
             System.exit(1);
         }
+        //conver the int array to double for later
+        double[][][] inputDouble = new double[inputs.length][inputs[0].length][inputs[0][0].length];
+        for(int i = 0; i < inputs.length; i++) {
+            for(int j = 0; j < inputs[i].length; j++) {
+                for(int k = 0; k < inputs[i][j].length; k++) {
+                    inputDouble[i][j][k] = inputs[i][j][k];
+                }
+            }
+        }
         System.out.println("Training data succesfully retrieved");
 
         // setting up network
@@ -263,7 +290,7 @@ public class NeuralNetwork {
         // Training data
         System.out.println("Training network based on data");
         net.printWeights();
-        net.trainData(inputs[0], inputs[1]);
+        net.trainData(inputDouble[0], inputDouble[1]);
         System.out.println("Network successfully trained");
     }
 }
