@@ -59,8 +59,39 @@ public class NeuralNetwork {
         }
     }
 
+    // trains the data using forward/backward propogation
     public void trainData(int[][] inputs, int[][] expecteds) {
+        // go through every input
+        for(int i = 0; i < inputs.length; i++) {
+            // set input layer to input
+            double[] tempLayer = layers.get(0);
+            for(int j = 0; j < inputs[i].length; j++) {
+                tempLayer[j] = inputs[i][j];
+            }
+            layers.set(0, tempLayer);
 
+            // forward Propogate
+            forwardPropagate();
+            printLayers();
+        }
+    }
+
+    public void forwardPropagate() {
+        // go through each layer
+        for(int i = 0; i < layers.size() - 1; i++) {
+            double[] layerSending = layers.get(i);
+            double[] layerReceiving = layers.get(i+1);
+            // go through each node of the recieving layer
+            for(int rec = 0; rec < layerReceiving.length; rec++) {
+                double sum = 0;
+                // go through each weight from the sending to receiving node
+                for(int send = 0; send < layerSending.length; send++) {
+                    sum += weights.get(i)[send][rec] * layerSending[send];
+                }
+                // set sum of corresponding layer using activation fn
+                layers.get(i+1)[rec] = activationFns.get(i+1).apply(sum);
+            }
+        }
     }
 
     // add one layer using created activation fn
@@ -163,6 +194,17 @@ public class NeuralNetwork {
         }
     }
 
+    private void printLayers() {
+        for(int i = 0; i < layers.size(); i++) {
+            System.out.println("\nLayer " + i);
+            System.out.print("\t");
+            for(int j = 0; j < layers.get(i).length; j++) {
+                System.out.print(String.format("%.3f, ", layers.get(i)[j]));
+            }
+        }
+        System.out.println();
+    }
+
     //* ------------------  Default Activation Functions
     static public double sigmoid(double num) {
         return 1/(1+Math.exp(-1 * num));
@@ -183,6 +225,8 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) {
+        // getting training data
+        System.out.println("Getting training data");
         // getting input
         int[][][] inputs = null;
         try {
@@ -194,15 +238,17 @@ public class NeuralNetwork {
             ex.printStackTrace();
             System.exit(1);
         }
+        System.out.println("Training data succesfully retrieved");
 
         // setting up network
+        System.out.println("Initializing network");
         double learningRate = 0.1;
         BiFunction<double[], double[], Double> costFn = NeuralNetwork::meanSquaredError;
         NeuralNetwork net = new NeuralNetwork(learningRate, costFn);
 
         // adding layers
         net.addLayer(15, null);
-        net.addLayerStr(6, "sigmoid");
+        net.addLayerStr(2, "sigmoid");
         net.addLayerStr(10, "sigmoid");
         
         // initialize network (weights and biases)
@@ -213,6 +259,11 @@ public class NeuralNetwork {
             System.exit(1);
         }
         System.out.println("Successfully initialized network");
+
+        // Training data
+        System.out.println("Training network based on data");
         net.printWeights();
+        net.trainData(inputs[0], inputs[1]);
+        System.out.println("Network successfully trained");
     }
 }
