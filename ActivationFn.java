@@ -6,6 +6,7 @@ public class ActivationFn {
     private Function<Double, Double> derivative;
 
     public static ActivationFn SIGMOID = new ActivationFn(ActivationFn::sigmoid, ActivationFn::sigmoidDerivative);
+    public static ActivationFn EMPTY = new ActivationFn(ActivationFn::empty, ActivationFn:: emptyDerivative);
 
     public ActivationFn(Function<Double, Double> fn, Function<Double, Double> derivative) {
         this.fn = fn;
@@ -26,6 +27,14 @@ public class ActivationFn {
 
     private static double sigmoidDerivative(double num) {
         return sigmoid(num) * (1 - sigmoid(num));
+    }
+
+    private static double empty(double num) {
+        return num;
+    }
+
+    private static double emptyDerivative(double num) {
+        return num;
     }
 
 }

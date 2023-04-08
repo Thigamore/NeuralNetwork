@@ -36,7 +36,7 @@ public class CostFunction {
     private static double mseGroupFn(double[] calc, double[] expected) {
         double total = 0;
         for (int i = 0; i < expected.length; i++) {
-            total += calc[i] - expected[i];
+            total += (calc[i] - expected[i]) * (calc[i] - expected[i]);
         }
         return total / calc.length;
     }

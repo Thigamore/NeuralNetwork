@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.*;
+
+import javax.swing.Action;
+
 import java.util.Random;
 
 public class NeuralNetwork {
@@ -76,13 +79,24 @@ public class NeuralNetwork {
             // forward Propogate
             forwardPropagate();
             printLayers();
+            
+            // finds the activation of the output layer
+            double[] outputActivation = new double[layers.get(layers.size() - 1).length];
+            for(int j = 0; j < layers.get(layers.size() - 1).length; j++) {
+                outputActivation[j] = activationFns.get(activationFns.size() - 1).apply(layers.get(layers.size() - 1)[j]);
+            }
 
-            // calculate error or forward propogation
-            double error = cost.applyGroup(layers.get(layers.size() - 1), expecteds[i]);
+            // calculate error of forward propogation
+            double error = cost.applyGroup(outputActivation, expecteds[i]);
             System.out.println(String.format("Error: %.3f", error));
 
+            // calculate error for each output
+            double[] outputError = new double[layers.get(layers.size() - 1).length];
+            for(int j = 0; j < outputError.length; j++) {
+                outputError[j] = cost.applyFn(expecteds[i][j], outputActivation[j]);
+            }
             // backward propogation
-            // backPropogate(error);
+            backPropogate(outputError);
         }
     }
 
@@ -96,18 +110,44 @@ public class NeuralNetwork {
                 double sum = 0;
                 // go through each weight from the sending to receiving node
                 for (int send = 0; send < layerSending.length; send++) {
-                    sum += weights.get(i)[send][rec] * layerSending[send];
+                    sum += weights.get(i)[send][rec] * activationFns.get(i).apply(layerSending[send]);
                 }
                 // set sum of corresponding layer using activation fn
                 System.out.println(biases.get(i).length);
-                layers.get(i + 1)[rec] = activationFns.get(i + 1).apply(sum + biases.get(i)[rec]);
+                layers.get(i + 1)[rec] = sum + biases.get(i)[rec];
+                // layers.get(i + 1)[rec] = activationFns.get(i + 1).apply(sum + biases.get(i)[rec]);
             }
         }
     }
 
-    public void backPropogate() {
+    public void backPropogate(double[] costs) {
         // output layer calc
+        ArrayList<double[][]> weightChanges = new ArrayList<>();
+        // change in a or (w * zi-1) + b for other layers
+        // ArrayList<Double> prevLayerChanges = new ArrayList<>();
 
+        //initialize the weight Changes
+        for(int i = 0; i < weights.size(); i++) {
+            double [][] tempWeightChanges = new double[weights.get(i).length][weights.get(i)[0].length];
+            for(int j = 0; j < weights.get(i).length; j++) {
+                for(int k = 0; k < weights.get(i)[j].length; k++) {
+                    tempWeightChanges[j][k] = 0;
+                }
+            }
+            weightChanges.add(tempWeightChanges);
+        }
+
+        // the nodes of the previous layer
+        double[][] outputWeightChange = new double[layers.get(layers.size() - 2).length][layers.get(layers.size() - 1).length];
+        for(int i = 0; i < layers.get(layers.size() - 2).length; i++) {
+            double[] prevLayer = layers.get(layers.size() - 2);
+            double[] outputLayer = layers.get(layers.size() - 1);
+            // nodes of output layer
+            for(int j = 0; j < outputLayer.length; j++) {
+                // n * zi-1 * derivative of cost * derivative of activation
+                outputWeightChange[i][j] = learningRate * prevLayer[i] * costs[j] * activationFns.get(activationFns.size() - 1).applyDerivative(outputLayer[j]);
+            }
+        }
     }
 
     // add one layer using created activation fn
@@ -122,12 +162,14 @@ public class NeuralNetwork {
             case "sigmoid":
                 addLayer(numNodes, ActivationFn.SIGMOID);
                 break;
-
             /*
              * case "relu":
              * addLayer(numNodes, NeuralNetwork::relu);
              * break;
              */
+            case "empty":
+                addLayer(numNodes, ActivationFn.EMPTY);
+                break;
             default:
                 System.out.println("Couldn't find function");
                 break;
@@ -260,7 +302,7 @@ public class NeuralNetwork {
         NeuralNetwork net = new NeuralNetwork(learningRate, costFn);
 
         // adding layers
-        net.addLayer(15, null);
+        net.addLayerStr(15, "empty");
         net.addLayerStr(2, "sigmoid");
         net.addLayerStr(10, "sigmoid");
 
