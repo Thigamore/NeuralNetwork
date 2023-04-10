@@ -66,19 +66,19 @@ public class NeuralNetwork {
     }
 
     // trains the data using forward/backward propogation
-    public void trainData(double[][] inputs, double[][] expecteds) {
+    public void trainData(double[][] inputs, double[][] expecteds, int trainIterations) {
         // go through every input
-        for (int i = 0; i < inputs.length; i++) {
+        for (int i = 0; i < trainIterations; i++) {
             // set input layer to input
             double[] tempLayer = layers.get(0);
-            for (int j = 0; j < inputs[i].length; j++) {
-                tempLayer[j] = inputs[i][j];
+            for (int j = 0; j < inputs[i % inputs.length].length; j++) {
+                tempLayer[j] = inputs[i % inputs.length][j];
             }
             layers.set(0, tempLayer);
 
             // forward Propogate
             forwardPropagate();
-            printLayers();
+            // printLayers();
             
             // finds the activation of the output layer
             double[] outputActivation = new double[layers.get(layers.size() - 1).length];
@@ -87,18 +87,29 @@ public class NeuralNetwork {
             }
 
             // calculate error of forward propogation
-            double error = cost.applyGroup(outputActivation, expecteds[i]);
+            double error = cost.applyGroup(outputActivation, expecteds[i % inputs.length]);
             System.out.println(String.format("Error: %.3f", error));
 
             // calculate error for each output
             double[] outputError = new double[layers.get(layers.size() - 1).length];
             for(int j = 0; j < outputError.length; j++) {
-                outputError[j] = cost.applyFn(expecteds[i][j], outputActivation[j]);
+                outputError[j] = cost.applyFn(expecteds[i % inputs.length][j], outputActivation[j]);
             }
             // backward propogation
             backPropogate(outputError);
+
+            forwardPropagate();
+            error = cost.applyGroup(outputActivation, expecteds[i % inputs.length]);
+            System.out.println(String.format("Error: %.3f", error));
+            System.out.println(Arrays.toString(expecteds[i%inputs.length]));
+            System.out.println(Arrays.toString(layers.get(layers.size() - 1)));
         }
     }
+
+    // // returns double with accuracy
+    // public double testData() {
+        
+    // }
 
     public void forwardPropagate() {
         // go through each layer
@@ -113,7 +124,6 @@ public class NeuralNetwork {
                     sum += weights.get(i)[send][rec] * activationFns.get(i).apply(layerSending[send]);
                 }
                 // set sum of corresponding layer using activation fn
-                System.out.println(biases.get(i).length);
                 layers.get(i + 1)[rec] = sum + biases.get(i)[rec];
                 // layers.get(i + 1)[rec] = activationFns.get(i + 1).apply(sum + biases.get(i)[rec]);
             }
@@ -124,7 +134,7 @@ public class NeuralNetwork {
         // output layer calc
         ArrayList<double[][]> weightChanges = new ArrayList<>();
         // change in a or (w * zi-1) + b for other layers
-        // ArrayList<Double> prevLayerChanges = new ArrayList<>();
+        ArrayList<double[]> prevLayerChanges = new ArrayList<>();
 
         //initialize the weight Changes
         for(int i = 0; i < weights.size(); i++) {
@@ -137,15 +147,50 @@ public class NeuralNetwork {
             weightChanges.add(tempWeightChanges);
         }
 
-        // the nodes of the previous layer
+        // initialize the prevLayerChanges
+        for(int i = 0; i < layers.size(); i++) {
+            double[] tempLayerChanges = new double[layers.get(i).length];
+            for(int j = 0; j < layers.get(i).length; j++) {
+                tempLayerChanges[j] = 0;
+            }
+            prevLayerChanges.add(tempLayerChanges);
+        }
+
         double[][] outputWeightChange = new double[layers.get(layers.size() - 2).length][layers.get(layers.size() - 1).length];
+        // the nodes of the previous layer
         for(int i = 0; i < layers.get(layers.size() - 2).length; i++) {
             double[] prevLayer = layers.get(layers.size() - 2);
             double[] outputLayer = layers.get(layers.size() - 1);
+            double sum = 0;
             // nodes of output layer
             for(int j = 0; j < outputLayer.length; j++) {
                 // n * zi-1 * derivative of cost * derivative of activation
                 outputWeightChange[i][j] = learningRate * prevLayer[i] * costs[j] * activationFns.get(activationFns.size() - 1).applyDerivative(outputLayer[j]);
+                // wij * derivative of cost * derivative of activation
+                sum += weights.get(weights.size() - 1)[i][j] * costs[j] * activationFns.get(activationFns.size() - 1).applyDerivative(outputLayer[j]);
+            }
+            prevLayerChanges.get(prevLayerChanges.size() - 1)[i] = sum;
+        }
+        weightChanges.set(weightChanges.size() - 1, outputWeightChange);
+
+        //! WIP test with only one second layer
+        double[][] inputWeightChange = new double[layers.get(0).length][layers.get(1).length];
+        for(int i = 0; i < layers.get(0).length; i++) {
+            double[] inputLayer = layers.get(0);
+            double[] hiddenLayer = layers.get(1);
+            for(int j = 0; j < hiddenLayer.length; j++) {
+                double a = inputLayer[i];
+                inputWeightChange[i][j] = learningRate * inputLayer[i] * prevLayerChanges.get(prevLayerChanges.size() - 1)[j] * activationFns.get(activationFns.size() - 2).applyDerivative(hiddenLayer[j]);
+            }
+        }
+        weightChanges.set(0, inputWeightChange);
+        // System.out.println("0: " + Arrays.deepToString(weightChanges.get(0)));
+        // System.out.println("1: " + Arrays.deepToString(weightChanges.get(1)))
+        for(int i = 0 ; i < weights.size(); i++) {
+            for(int j = 0; j < weights.get(i).length; j++) {
+                for(int k = 0; k < weights.get(i)[j].length; k++) {
+                    weights.get(i)[j][k] += weightChanges.get(i)[j][k];
+                }
             }
         }
     }
@@ -297,7 +342,7 @@ public class NeuralNetwork {
 
         // setting up network
         System.out.println("Initializing network");
-        double learningRate = 0.1;
+        double learningRate = 5;
         CostFunction costFn = CostFunction.MSE;
         NeuralNetwork net = new NeuralNetwork(learningRate, costFn);
 
@@ -318,7 +363,7 @@ public class NeuralNetwork {
         // Training data
         System.out.println("Training network based on data");
         net.printWeights();
-        net.trainData(inputDouble[0], inputDouble[1]);
+        net.trainData(inputDouble[0], inputDouble[1], 1000);
         System.out.println("Network successfully trained");
     }
 }
