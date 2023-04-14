@@ -1,9 +1,12 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.Scanner;
 
 public class NeuralNetwork {
 
@@ -69,7 +72,7 @@ public class NeuralNetwork {
                 // System.exit(0);
             }
             int train = (int) (Math.random() * 26);
-            System.out.println(train);
+            // System.out.println(train);
             // set input layer to input
             double[] tempLayer = layers.get(0);
             for (int j = 0; j < inputs[train].length; j++) {
@@ -90,12 +93,12 @@ public class NeuralNetwork {
 
             // calculate error of forward propogation
             double error = cost.applyGroup(outputActivation, expecteds[train]);
-            System.out.println(String.format("Error: %.3f", error));
+            //System.out.println(String.format("Error: %.3f", error));
 
             // calculate error for each output
             double[] outputError = new double[layers.get(layers.size() - 1).length];
             for (int j = 0; j < outputError.length; j++) {
-                outputError[j] = cost.applyFn(expecteds[train][j], outputActivation[j]);
+                outputError[j] = cost.applyDerivative(expecteds[train][j], outputActivation[j]);
             }
 
             // System.out.println("Error Arr: " + Arrays.toString(outputError));
@@ -105,17 +108,40 @@ public class NeuralNetwork {
             backPropogate(outputError);
             forwardPropagate();
             error = cost.applyGroup(outputActivation, expecteds[train]);
-            System.out.println(String.format("Error: %.3f\n", error));
-            // printWeights();
-            System.out.println(Arrays.toString(expecteds[train]));
-            System.out.println(Arrays.toString(outputActivation));
+            // System.out.println(String.format("Error: %.3f\n", error));
+            // // printWeights();
+            // System.out.println(Arrays.toString(expecteds[train]));
+            // System.out.println(Arrays.toString(outputActivation));
         }
     }
 
-    // // returns double with accuracy
-    // public double testData() {
-
-    // }
+    // returns double with accuracy
+    public double testData(double[][][] testingData) {
+        double accuracy = 0;
+        for(int i = 0; i < testingData[0].length; i++) {
+            //put the data into the neural network
+            for(int j = 0; j < testingData[0][i].length; j++) {
+                layers.get(0)[j] = testingData[0][i][j];
+            }
+            forwardPropagate();
+            int prediction = 0;
+            for(int j = 1; j < layers.get(layers.size() - 1).length; j++ ) {
+                if(activationFns.get(activationFns.size() - 1).apply(layers.get(layers.size() - 1)[j]) > activationFns.get(activationFns.size() - 1).apply(layers.get(layers.size() - 1)[prediction])) {
+                    prediction = j;
+                }
+            }
+            int expected = 0;
+            for(int j = 1; j < layers.get(layers.size() - 1).length; j++ ) {
+                if(testingData[1][i][j] > testingData[1][i][expected]) {
+                    expected = j;
+                }
+            }
+            if(prediction == expected) {
+                accuracy++;
+            }
+        }
+        return accuracy / testingData[0].length;
+    }
 
     public void forwardPropagate() {
         // go through each layer
@@ -175,8 +201,8 @@ public class NeuralNetwork {
 
                 // n * zi-1 * derivative of cost * derivative of activation
                 outputWeightChange[i][j] = learningRate
-                        * sigmoid(prevLayer[i]) * costs[j]
-                        * sigmoidDerivative(outputLayer[j]);
+                        * activationFns.get(activationFns.size() - 1).apply(prevLayer[i]) * costs[j]
+                        * activationFns.get(activationFns.size() - 1).applyDerivative(outputLayer[j]);
                 // wij * derivative of cost * derivative of activation
                 sum += weights.get(weights.size() - 1)[i][j] * costs[j]
                         * sigmoidDerivative(outputLayer[j]);
@@ -187,17 +213,16 @@ public class NeuralNetwork {
         // System.out.println("weights changes: " +
         // Arrays.deepToString(outputWeightChange));
 
-        // // ! WIP test with only one second layer
+        // ! WIP test with only one second layer
         double[][] inputWeightChange = new double[layers.get(0).length][layers.get(1).length];
         for (int i = 0; i < layers.get(0).length; i++) {
             double[] inputLayer = layers.get(0);
             double[] hiddenLayer = layers.get(1);
             for (int j = 0; j < hiddenLayer.length; j++) {
-                inputWeightChange[i][j] = learningRate *
-                        activationFns.get(activationFns.size() - 2).apply(inputLayer[i]) *
-                        prevLayerChanges.get(prevLayerChanges.size() - 1)[j] *
-                        activationFns.get(activationFns.size() -
-                                2).applyDerivative(hiddenLayer[j]);
+                // learning rate * zi-1 * (sum of (error term * weights)) * derivative of activation
+                inputWeightChange[i][j] = learningRate * activationFns.get(activationFns.size() - 2).apply(inputLayer[i]) *
+                    prevLayerChanges.get(prevLayerChanges.size() - 1)[j] * 
+                    activationFns.get(activationFns.size() -2).applyDerivative(hiddenLayer[j]);
             }
         }
         // System.out.println("input weight Changes: " +
@@ -208,7 +233,7 @@ public class NeuralNetwork {
         for (int i = 0; i < weights.size(); i++) {
             for (int j = 0; j < weights.get(i).length; j++) {
                 for (int k = 0; k < weights.get(i)[j].length; k++) {
-                    weights.get(i)[j][k] -= weightChanges.get(i)[j][k];
+                    weights.get(i)[j][k] += weightChanges.get(i)[j][k];
                 }
             }
         }
@@ -259,7 +284,7 @@ public class NeuralNetwork {
 
     // * ------------------ utility functions
     // get the data in the form of [input=0, output=1][input/output round][nodes]
-    public static int[][][] getInputData(String path, String split) throws IOException, Exception {
+    public static int[][][] getInputData(String path) throws IOException, Exception {
         BufferedReader bf = new BufferedReader(new FileReader(path));
         ArrayList<int[]> inputs = new ArrayList<>();
         ArrayList<int[]> expected = new ArrayList<>();
@@ -270,23 +295,20 @@ public class NeuralNetwork {
             line = bf.readLine();
         }
         // set length
-        int lenIn = line.split(split)[0].length();
-        int lenExp = line.split(split)[1].length();
+        int lenIn = line.split(",")[0].length();
+        int lenExp = line.split(",")[1].length();
 
         // get each line
         while (line != null) {
-            // skip comments
-            if (line.charAt(0) == '/') {
-                line = bf.readLine();
-                continue;
-            }
             // split input
-            String[] splitInput = line.split(split);
+            String[] splitInput = line.split(",");
             int[] tempInput = splitInput[0].chars().toArray();
             int[] tempExpected = splitInput[1].chars().toArray();
             if (tempInput.length != lenIn) {
+                bf.close();
                 throw new Exception("Length of input not consistent.");
             } else if (tempExpected.length != lenExp) {
+                bf.close();
                 throw new Exception("Length of output not consistent.");
             }
             // make input an int
@@ -303,6 +325,31 @@ public class NeuralNetwork {
         bf.close();
         // return mix of the input and expected
         return new int[][][] { inputs.toArray(new int[inputs.size()][]), expected.toArray(new int[expected.size()][]) };
+    }
+
+    private void saveNetwork(String path) throws IOException{
+        BufferedWriter bw = new BufferedWriter(new FileWriter(path));
+        // learning rate, number of layers, weights for each node ...
+        String param = String.format("%d,%d", learningRate, layers.size());
+        for(int i = 0; i < weights.size(); i++) {
+            param += "," + weights.get(i).length;
+        }
+        // write the parameters
+        bw.write(param);
+        bw.newLine();
+
+        // put all the weights
+        for(int i = 0; i < weights.size(); i++) {
+            for(int j = 0; j < weights.get(i).length; j++) {
+                String weightsStr = "";
+                for(int k = 0; k < weights.get(i)[j].length; k++) {
+                    weightsStr += weights.get(i)[j][k] + ",";
+                }
+                bw.write(weightsStr.substring(0, weightsStr.length() - 2));
+                bw.newLine();
+            }
+        }
+        bw.close();
     }
 
     private void printWeights() {
@@ -348,7 +395,7 @@ public class NeuralNetwork {
         // getting input
         int[][][] inputs = null;
         try {
-            inputs = getInputData("training.data", ",");
+            inputs = getInputData("training.csv");
         } catch (IOException ioe) {
             System.out.println("Couldn't find file.");
         } catch (Exception ex) {
@@ -380,7 +427,7 @@ public class NeuralNetwork {
 
         // adding layers
         net.addLayerStr(15, "empty");
-        // net.addLayerStr(2, "sigmoid");
+        net.addLayerStr(5, "sigmoid");
         net.addLayerStr(10, "sigmoid");
 
         // initialize network (weights and biases)
@@ -395,7 +442,26 @@ public class NeuralNetwork {
         // Training data
         System.out.println("Training network based on data");
         net.printWeights();
-        net.trainData(inputDouble[0], inputDouble[1], 10000);
+        net.trainData(inputDouble[0], inputDouble[1], 30000);
         System.out.println("Network successfully trained");
+        
+        // Testing data
+        //! Shuffle the input data
+        System.out.println(String.format("Accuracy is %.2f",net.testData(inputDouble) * 100) + "%");
+
+        // potentially saving network
+        System.out.println("Would you like to save the network? (y,n) ");
+        Scanner input = new Scanner(System.in);
+        int choice = ' ';
+        try {
+            choice = System.in.read();
+        } catch(Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        
+        // if 'y' in ascii
+        if(choice == 'y') {
+            
+        }
     }
 }

@@ -31,19 +31,19 @@ public class CostFunction {
 
     private static double mseFn(double calc, double expected) {
         // ! FiX
-        return (calc - expected);
+        return (calc - expected) * (calc - expected);
     }
 
     private static double mseGroupFn(double[] calc, double[] expected) {
         double total = 0;
         for (int i = 0; i < calc.length; i++) {
             // ! FIX
-            total += (calc[i] - expected[i]);
+            total += (calc[i] - expected[i]) * (calc[i] - expected[i]);
         }
         return total / calc.length;
     }
 
     private static double mseDerivative(double calc, double expected) {
-        return 2 * (calc - expected);
+        return (calc - expected);
     }
 }
