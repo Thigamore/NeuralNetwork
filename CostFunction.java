@@ -1,3 +1,7 @@
+// Thomas Lascaud
+// 4/15/23
+// A class that holds the information about cost funtion that is needed
+
 import java.util.function.*;
 
 public class CostFunction {
